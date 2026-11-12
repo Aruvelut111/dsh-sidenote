@@ -30,6 +30,7 @@ import { t } from '../locales.ts'
  */
 
 export interface QuoteItem {
+  readonly externalSource?: { readonly label: string; readonly address?: string; readonly page?: number }
   readonly text: string
   readonly note: string
   /** 本条消息中的编号，与原文角标一致。 */
@@ -45,6 +46,12 @@ export function protocolHeader(n: number): string {
 export function formatAnnotationXml(index: number, item: QuoteItem): string {
   const id = item.number ?? index
   const note = item.note.trim()
+  if (item.externalSource) {
+    const escape = (value: string) => value.split('&').join('&amp;').split('<').join('&lt;').split('>').join('&gt;')
+    const address = item.externalSource.address
+    const quote = address ? item.text + '\n[Source: ' + address + ']' : item.text
+    return '<annotation id="' + id + '" encoding="xml">\n<quote>' + escape(quote) + '</quote>' + (note === '' ? '' : '\n<note>' + escape(note) + '</note>') + '\n</annotation>'
+  }
   return note === ''
     ? `<annotation id="${id}">\n<quote>${item.text}</quote>\n</annotation>`
     : `<annotation id="${id}">\n<quote>${item.text}</quote>\n<note>${note}</note>\n</annotation>`
@@ -82,7 +89,7 @@ export interface ProtocolPrefix {
   readonly reflows: readonly ParsedRefFlow[]
 }
 
-const ANNOTATION_RE = /<annotation id="(\d+)"(?: local="(\d+)")?(?: scope="[^"]*")?>\s*<quote>([\s\S]*?)<\/quote>\s*(?:<note>([\s\S]*?)<\/note>\s*)?<\/annotation>/y
+const ANNOTATION_RE = /<annotation id="(\d+)"(?: local="(\d+)")?(?: scope="[^"]*")?(?: encoding="xml")?>\s*<quote>([\s\S]*?)<\/quote>\s*(?:<note>([\s\S]*?)<\/note>\s*)?<\/annotation>/y
 const REFLOW_RE = /<reflow\s+source="([^"]*)"(?:\s+reason="([^"]*)")?\s*>([\s\S]*?)<\/reflow>/y
 
 /**
@@ -134,7 +141,9 @@ export function splitProtocolPrefix(text: string): ProtocolPrefix | null {
       const m = ANNOTATION_RE.exec(text)
       if (m === null) break
       // 旧预览消息有 local 属性时，沿用当时显示的编号。
-      annotations.push({ id: Number(m[2] ?? m[1]), quote: m[3] ?? '', note: (m[4] ?? '').trim() })
+      const encoded = m[0].slice(0, m[0].indexOf('>')).includes(' encoding="xml"')
+      const decode = (value: string) => encoded ? value.split('&lt;').join('<').split('&gt;').join('>').split('&quot;').join('"').split('&amp;').join('&') : value
+      annotations.push({ id: Number(m[2] ?? m[1]), quote: decode(m[3] ?? ''), note: decode(m[4] ?? '').trim() })
       cursor = skipBlank(text, ANNOTATION_RE.lastIndex)
     }
     if (annotations.length > 0) {

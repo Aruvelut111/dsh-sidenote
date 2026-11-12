@@ -15,6 +15,8 @@
  * 会话清空时删键。storage 不可用（测试/隐私模式）时退化为纯内存。
  */
 export interface Annotation {
+  readonly externalCaptureId?: string
+  readonly externalSource?: { readonly label: string; readonly address?: string; readonly page?: number; readonly anchor?: { exact: string; start: number; prefix: string; suffix: string } }
   /** Store-unique identity (monotonic across sessions). */
   readonly id: number
   /** 本批显示及 <annotation id> 编号，发送时冻结。 */
@@ -42,6 +44,8 @@ export interface Annotation {
 export type AnnotationAnchor = Pick<Annotation, 'anchorKey' | 'anchorText' | 'occurrence'>
 
 export interface AnnotationDraft {
+  readonly externalCaptureId?: string
+  readonly externalSource?: Annotation['externalSource']
   readonly sessionId: string
   readonly sourceSessionId?: string
   readonly sourceSurface?: 'main' | 'side'
@@ -113,6 +117,8 @@ function reviveStored(value: unknown): Annotation | null {
     note: typeof a.note === 'string' ? a.note : '',
     state: a.state,
     createdAt: typeof a.createdAt === 'number' ? a.createdAt : 0,
+    ...(typeof a.externalCaptureId === 'string' ? { externalCaptureId: a.externalCaptureId } : {}),
+    ...(typeof (a.externalSource as Annotation['externalSource'])?.label === 'string' ? { externalSource: a.externalSource as Annotation['externalSource'] } : {}),
   }
 }
 
@@ -238,6 +244,8 @@ export function createAnnotationStore(
         sessionId: draft.sessionId,
         sourceSessionId: draft.sourceSessionId,
         sourceSurface: draft.sourceSurface,
+        externalSource: draft.externalSource,
+        externalCaptureId: draft.externalCaptureId,
         anchorKey: draft.anchorKey,
         text: draft.text,
         anchorText: draft.anchorText,
@@ -254,7 +262,7 @@ export function createAnnotationStore(
       return annotation
     },
     setNote(id: number, note: string): void {
-      if (!annotations.some(a => a.id === id)) return
+      if (!annotations.some(a => a.id === id && a.note !== note && !(a.externalSource && a.state === 'sent'))) return
       replace(id, { note })
     },
     remove(id: number): void {

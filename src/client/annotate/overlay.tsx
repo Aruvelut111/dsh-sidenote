@@ -27,6 +27,7 @@ import { badgeAnchorOf, gutterAnchorOf, highlightRectsOf, resolveRanges, spreadB
 import { quoteSourceOf, sourceClip, focusSourceComposer } from '../annotations/source.ts'
 import { FirstUseHint } from './hint.tsx'
 import type { Annotation, AnnotationStore } from '../annotations/model.ts'
+import { registerExternalAnnotations } from '../annotations/external.ts'
 import type { SelectionController, SelectionSnapshot } from './selection.ts'
 import { AnnotationBoundary } from '../annotations/boundary.tsx'
 import type { SidenotePreferences } from '../preferences.ts'
@@ -36,6 +37,7 @@ import css from './annotate.module.css'
 /** Editor state: which annotation is being edited, and where the popover sits. */
 interface EditorState {
   readonly annotationId: number
+  readonly originalNote?: string
   readonly mode: 'new' | 'edit'
   readonly x: number
   readonly y: number
@@ -118,6 +120,11 @@ function AnnotateOverlayInner({ ctx, store, controller, preferences }: OverlayPr
   void sessionList
   const currentSessionId = currentSessionIdOf(ctx)
   const [editor, setEditor] = useState<EditorState | null>(null)
+  useEffect(() => registerExternalAnnotations(store, (annotation, point, mode = 'new') => {
+    controller.clear()
+    if (annotation.state === 'sent') setViewer({ annotationId: annotation.id, ...point })
+    else setEditor({ annotationId: annotation.id, originalNote: annotation.note, mode, ...point })
+  }), [store, controller])
   const [sideDraft, setSideDraft] = useState<SideDraftState | null>(null)
   // Bumped by scroll/resize/DOM mutation so badge/highlight geometry follows.
   const [, setGeometryTick] = useState(0)
@@ -226,19 +233,45 @@ function AnnotateOverlayInner({ ctx, store, controller, preferences }: OverlayPr
   // sent 态注释的只读回看卡片（角标灰态点开的落点）。
   const [viewer, setViewer] = useState<{ annotationId: number; x: number; y: number; bounds?: Bounds } | null>(null)
 
+  useEffect(() => {
+    setEditor(null)
+    setViewer(null)
+    setSideDraft(current => { current?.abort.abort(); return null })
+  }, [currentSessionId])
+
   const reopenAnnotation = (annotation: Annotation, point: { x: number; y: number; bounds?: Bounds; targetTitle?: string }): void => {
     if (store.getSubmission(annotation.sessionId).pending) return
     if (annotation.state === 'sent') {
       setViewer({ annotationId: annotation.id, ...point })
       return
     }
-    setEditor({ annotationId: annotation.id, mode: 'edit', ...point })
+    setEditor({ annotationId: annotation.id, originalNote: annotation.note, mode: 'edit', ...point })
   }
 
   const closeEditor = (): void => setEditor(null)
 
   const editingAnnotation = editor === null ? undefined : store.get(editor.annotationId)
   const viewingAnnotation = viewer === null ? undefined : store.get(viewer.annotationId)
+  useEffect(() => {
+    if (!editingAnnotation?.externalSource) return
+    const annotation = editingAnnotation
+    const check = () => {
+      const roots = [...document.querySelectorAll<HTMLElement>('[data-textpreview-url]')].filter(root => root.getAttribute('data-textpreview-url') === annotation.externalSource?.address && root.closest('[data-sidebar-right-session]')?.getAttribute('data-sidebar-right-session') === annotation.sessionId)
+      const visible = roots.some(root => {
+        if (!root.isConnected) return false
+        for (let node: Element | null = root; node; node = node.parentElement) {
+          if (node.hasAttribute('hidden') || node.getAttribute('aria-hidden') === 'true') return false
+          if (node.hasAttribute('data-sidebar-right-panel') && !node.hasAttribute('data-sidebar-right-open') && !root.closest('[data-dockkit-float]')) return false
+          const style = getComputedStyle(node)
+          if (style.display === 'none' || style.visibility === 'hidden' || style.visibility === 'collapse') return false
+        }
+        return true
+      })
+      if (!visible || store.get(annotation.id)?.state !== 'active') setEditor(null)
+    }
+    const observer = new MutationObserver(check); observer.observe(document.body, { subtree: true, childList: true, attributes: true, attributeFilter: ['hidden', 'aria-hidden', 'class', 'style', 'data-sidebar-right-open', 'data-sidebar-right-session'] }); check()
+    return () => observer.disconnect()
+  }, [editingAnnotation?.id, editingAnnotation?.state, store])
 
   return (
     <>
@@ -275,6 +308,7 @@ function AnnotateOverlayInner({ ctx, store, controller, preferences }: OverlayPr
           y={editor.y}
           bounds={editor.bounds}
           targetTitle={editor.targetTitle}
+          onDraft={editingAnnotation.externalSource ? note => { store.setNote(editingAnnotation.id, note) } : undefined}
           onSave={(note) => {
             store.setNote(editingAnnotation.id, note)
             closeEditor()
@@ -296,6 +330,8 @@ function AnnotateOverlayInner({ ctx, store, controller, preferences }: OverlayPr
             if (editor.mode === 'new') {
               store.remove(editingAnnotation.id)
               rangeCache.current.delete(editingAnnotation.id)
+            } else if (editingAnnotation.externalSource && editor.originalNote !== undefined) {
+              store.setNote(editingAnnotation.id, editor.originalNote)
             }
             closeEditor()
           }}
@@ -319,6 +355,7 @@ function AnnotateOverlayInner({ ctx, store, controller, preferences }: OverlayPr
           y={viewer.y}
           bounds={viewer.bounds}
           onClose={() => { setViewer(null) }}
+          onDelete={() => { store.remove(viewingAnnotation.id); setViewer(null) }}
         />
       )}
     </>
@@ -332,6 +369,7 @@ function SentViewer(props: {
   y: number
   bounds?: Bounds
   onClose: () => void
+  onDelete: () => void
 }): ReactNode {
   useLocaleTick()
   const rootRef = useRef<HTMLDivElement | null>(null)
@@ -367,6 +405,7 @@ function SentViewer(props: {
       <div className={css.sentCardTitle}>{t('sentCardTitle', { n: props.annotation.number })}</div>
       <div className={css.sentCardQuote}>{props.annotation.text}</div>
       {props.annotation.note !== '' && <div className={css.sentCardNote}>{props.annotation.note}</div>}
+      <button type="button" className={css.deleteButton} title={t('deleteNote')} aria-label={t('deleteNote')} onClick={props.onDelete}><IconTrashOutline16 size={14} /></button>
     </div>
   )
 }
@@ -525,7 +564,7 @@ function BadgeLayer(props: {
   editingId: number | null
   onOpen: (annotation: Annotation, point: { x: number; y: number; bounds?: Bounds; targetTitle?: string }) => void
 }): ReactNode {
-  const annotations = props.store.sessions().flatMap(id => props.store.list(id))
+  const annotations = props.store.sessions().flatMap(id => props.store.listActive(id))
   const badges: ReactNode[] = []
   const placed: { x: number; y: number }[] = []
   let highlight: ReactNode = null
@@ -609,6 +648,7 @@ export function AnnotationEditor(props: {
   y: number
   bounds?: Bounds
   targetTitle?: string
+  onDraft?: (note: string) => void
   onSave: (note: string) => void
   onDelete: () => void
   onCancel: () => void
@@ -640,7 +680,7 @@ export function AnnotationEditor(props: {
       // 新建态点外部 = 确认这一条：点输入框准备写问题是最常见的下一步动作，以前这里
       // 走 onCancel → 刚创建的注释被整条删除，用户划选的引用凭空消失（Esc 才是显式放弃）。
       // 重开态点外部仍是取消——只关编辑器，已有注解不受影响。
-      if (props.mode === 'new') props.onSave(noteRef.current)
+      if (props.mode === 'new' || props.onDraft) props.onSave(noteRef.current)
       else props.onCancel()
     }
     document.addEventListener('keydown', onKeyDown, true)
@@ -660,9 +700,11 @@ export function AnnotationEditor(props: {
 
   if (props.mode === 'new') {
     return (
-      <div ref={rootRef} className={props.targetTitle === undefined ? css.editorNew : css.editorAsk} style={{ left, top, width, maxHeight: (props.bounds?.bottom ?? window.innerHeight) - top - 8, overflowY: 'auto' }}>
+      <div ref={rootRef} className={props.targetTitle === undefined && !props.annotation.externalSource ? css.editorNew : css.editorAsk} style={{ left, top, width, maxHeight: (props.bounds?.bottom ?? window.innerHeight) - top - 8, overflowY: 'auto' }}>
+        {props.annotation.externalSource !== undefined && <div className={css.editorTarget}>{props.annotation.externalSource.label}</div>}
         {props.targetTitle !== undefined && <div className={css.editorTarget}>{t('sendToTarget', { title: props.targetTitle })}</div>}
         <div className={css.editorAskRow} style={{ flex: 1 }}>
+        <button type="button" className={css.deleteButton} title={t('deleteNote')} aria-label={t('deleteNote')} onClick={props.onDelete}><IconTrashOutline16 size={14} /></button>
         <textarea
           ref={noteInputRef}
           className={css.editorInput}
@@ -670,7 +712,7 @@ export function AnnotationEditor(props: {
           placeholder={t('notePlaceholder')}
           rows={1}
           autoFocus
-          onChange={(event) => { setNote(event.target.value) }}
+          onChange={(event) => { setNote(event.target.value); props.onDraft?.(event.target.value) }}
           onKeyDown={(event) => {
             if (event.key !== 'Enter' || event.shiftKey) return
             // IME 保护：组合中（候选窗未提交）的 Enter 属于输入法，不能算确认。
@@ -695,6 +737,7 @@ export function AnnotationEditor(props: {
 
   return (
     <div ref={rootRef} className={css.editorEdit} style={{ left, top, width }}>
+      {props.annotation.externalSource !== undefined && <div className={css.editorTarget}>{props.annotation.externalSource.label}</div>}
       {props.targetTitle !== undefined && <div className={css.editorTarget}>{t('sendToTarget', { title: props.targetTitle })}</div>}
       <textarea
         className={css.editorTextarea}
@@ -702,7 +745,7 @@ export function AnnotationEditor(props: {
         placeholder={t('notePlaceholder')}
         rows={3}
         autoFocus
-        onChange={(event) => { setNote(event.target.value) }}
+        onChange={(event) => { setNote(event.target.value); props.onDraft?.(event.target.value) }}
         onKeyDown={(event) => {
           if (event.key !== 'Enter' || event.shiftKey) return
           // IME 保护：组合中（候选窗未提交）的 Enter 属于输入法，不能算保存。

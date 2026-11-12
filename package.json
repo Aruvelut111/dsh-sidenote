@@ -1,6 +1,6 @@
 {
   "name": "dsh-sidenote",
-  "version": "0.8.5",
+  "version": "0.8.5-reader.3",
   "description": "Follow the tangent. Keep the thread. Annotate, explore on the side, and bring answers back to DeepSeek Harness. / 思路可以分岔，主线始终向前。划选注释、侧边追问，再把结论带回正在推进的任务。",
   "icon": "docs/assets/logo.svg",
   "type": "module",
@@ -54,7 +54,11 @@
     "cordis.patch.yml",
     "docs/assets/logo.svg",
     "README.md",
-    "LICENSE"
+    "LICENSE",
+    "THIRD_PARTY_NOTICES.txt",
+    "licenses",
+    "docs/external-readers.md",
+    "docs/external-readers_EN.md"
   ],
   "scripts": {
     "build": "node -e \"fs.rmSync('lib',{recursive:true,force:true})\" && tsc -p tsconfig.build.json && tsdown",
@@ -127,12 +131,12 @@
     "ai-coding",
     "deepseek"
   ],
-  "homepage": "https://github.com/g-yixuan/dsh-sidenote#readme",
+  "homepage": "https://github.com/Aruvelut111/dsh-sidenote#readme",
   "repository": {
     "type": "git",
-    "url": "https://github.com/g-yixuan/dsh-sidenote.git"
+    "url": "git+https://github.com/Aruvelut111/dsh-sidenote.git"
   },
-  "bugs": "https://github.com/g-yixuan/dsh-sidenote/issues",
+  "bugs": "https://github.com/Aruvelut111/dsh-sidenote/issues",
   "author": "gyixuan",
   "packageManager": "pnpm@11.26.0"
 }

@@ -12,8 +12,9 @@
  */
 import { readdirSync, readFileSync, statSync } from 'node:fs'
 import { join, relative } from 'node:path'
+import { fileURLToPath } from 'node:url'
 
-const ROOT = new URL('..', import.meta.url).pathname
+const ROOT = fileURLToPath(new URL('..', import.meta.url))
 const SRC = join(ROOT, 'src/client')
 
 /** L0/L1 判型：纯逻辑与 store 文件（react-free 承诺）。 */
@@ -56,7 +57,7 @@ const warnings = []
 
 for (const dir of [SRC, join(ROOT, 'tests')]) {
   for (const file of walk(dir)) {
-    const rel = relative(ROOT, file)
+    const rel = relative(ROOT, file).replaceAll(String.fromCharCode(92), '/')
     const src = readFileSync(file, 'utf8')
 
     // 规则 1：L0/L1 react-free（值导入才拦；import type / import{ type X } 放行）。

@@ -13,12 +13,27 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { act } from 'react'
 import { createRoot } from 'react-dom/client'
 import { AnnotationEditor } from '../src/client/annotate/overlay.tsx'
-import type { Annotation } from '../src/client/annotations/model.ts'
+import { createAnnotationStore, type Annotation } from '../src/client/annotations/model.ts'
 
 // React 18 act 环境标记（jsdom 下手渲需要）。
 ;(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true
 
 afterEach(() => { document.body.replaceChildren() })
+
+it.each(['new', 'edit'] as const)('reader %s drafts survive unmount/reload before confirmation', mode => {
+  const memory = new Map<string, string>()
+  const storage = { get length() { return memory.size }, key: (n: number) => [...memory.keys()][n] ?? null, getItem: (key: string) => memory.get(key) ?? null, setItem: (key: string, value: string) => { memory.set(key, value) }, removeItem: (key: string) => { memory.delete(key) } }
+  const store = createAnnotationStore(() => 1, storage)
+  const annotation = store.add({ ...annotationWith('original'), externalSource: { label: 'book.pdf', address: 'dsh-resource://file/session/s1/book.pdf', page: 2 } })
+  const host = document.createElement('div'); document.body.append(host); const root = createRoot(host)
+  act(() => { root.render(<AnnotationEditor annotation={annotation} mode={mode} x={40} y={40} onDraft={note => { store.setNote(annotation.id, note) }} onSave={vi.fn()} onCancel={vi.fn()} onDelete={vi.fn()} />) })
+  typeNote(host.querySelector('textarea')!, '尚未确认的任意批注\nsecond line <tag>')
+  act(() => { root.unmount() })
+  const reloaded = createAnnotationStore(() => 2, storage)
+  expect(reloaded.list('s1')[0]?.note).toBe('尚未确认的任意批注\nsecond line <tag>')
+  expect(reloaded.list('s1')[0]?.externalSource?.page).toBe(2)
+  expect(reloaded.list('another-session')).toEqual([])
+})
 
 function annotationWith(note: string): Annotation {
   return {

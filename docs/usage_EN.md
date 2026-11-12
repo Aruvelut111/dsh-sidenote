@@ -109,3 +109,11 @@ dsh plugin --profile web add link:<repo path>
 ```
 
 Client changes hot-reload; host changes require restarting `dsh web`. See the [contributing guide](../CONTRIBUTING_EN.md) for setup, architecture gates, typechecking, build and test order, and host validation.
+
+## File reading annotations (local revision)
+
+`0.8.5-reader.1` adds an optional same-document annotation seam. With dsh-paper-margin 2.5.0, PDF, HTML, Excel and selectable native file previews feed the existing annotation chip, editor and native send transaction. Source files and destination sessions remain separate. Source buttons reopen files; the PDF adapter can locate the page and selected passage.
+
+Comments accept any language and multiple lines. External references include source addresses and XML encoding so literal `<tag>` or `</quote>` text round-trips. Capture IDs persist for retry deduplication after reload. New edits after sending create a pending version while preserving the sent snapshot. Existing main-chat annotation behavior remains in place.
+
+This is a local integration patch, not an upstream release. See [external-readers_EN.md](external-readers_EN.md) for the interface.

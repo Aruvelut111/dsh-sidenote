@@ -23,6 +23,7 @@ interface ComposerProps {
   useInput<T>(select: (state: InputStateSnapshot | undefined) => T): T
   useSession<T>(select: (state: Session | undefined) => T): T
   useBusyEnter<T>(select: (mode: 'queue' | 'steer') => T): T
+  useAccess?(permission: string): boolean | undefined
   t(key: string): string
 }
 
@@ -50,6 +51,7 @@ function ContextComposer({ Original, props, ctx, annotations, reflow }: { Origin
   const input = props.useInput(state => state)
   const session = props.useSession(state => state)
   const busyMode = props.useBusyEnter(mode => mode)
+  const promptDenied = props.useAccess?.('session/prompt') === false
   const sessionId = props.sessionId ?? ''
   const pending = annotations.getSubmission(sessionId).pending
   const hasContext = annotations.countActive(sessionId) > 0 || reflow.list(sessionId).length > 0
@@ -70,16 +72,24 @@ function ContextComposer({ Original, props, ctx, annotations, reflow }: { Origin
   const useInput = useCallback(<T,>(select: (state: InputStateSnapshot | undefined) => T): T => props.useInput(state => select(pending && state?.phase === 'plain' ? { ...state, phase: 'submitting' } : state)), [props.useInput, pending])
   useLayoutEffect(() => {
     if (!contextOnly || !root.current) return
-    const button = findSendButtonInCard(root.current)
-    if (!button) return
-    setNativeButton(button)
     seat.style.display = 'contents'
-    button.parentElement!.append(seat)
-    if (!session?.running) button.dataset.sidenoteContextReplaced = ''
-    return () => { delete button.dataset.sidenoteContextReplaced; seat.remove() }
+    let current: HTMLButtonElement | null = null
+    const mount = () => {
+      const button = findSendButtonInCard(root.current!)
+      if (button === current && seat.isConnected) return
+      if (current) delete current.dataset.sidenoteContextReplaced
+      current = button; setNativeButton(button)
+      if (!button) { seat.remove(); return }
+      button.parentElement!.append(seat)
+      if (!session?.running) button.dataset.sidenoteContextReplaced = ''
+    }
+    // Native slot children can mount after this wrapper's layout phase.
+    // Observe only our own composer until its button is present/replaced.
+    const observer = new MutationObserver(mount); observer.observe(root.current, { childList: true, subtree: true }); mount()
+    return () => { observer.disconnect(); if (current) delete current.dataset.sidenoteContextReplaced; seat.remove() }
   }, [contextOnly, session?.running, sessionId, props.variant, seat])
   const offline = session?.subagent?.address.mode === 'continuable' && session.subagent.parentAvailable !== true
-  const disabled = pending || input?.phase !== 'plain' || props.disabled || props.blocked !== undefined || session?.removed || offline || !keyboard || !props.inputActions
+  const disabled = promptDenied || pending || input?.phase !== 'plain' || props.disabled || props.blocked !== undefined || session?.removed || offline || !keyboard || !props.inputActions
   const mode = session?.running ? busyMode : undefined
   const label = props.t(session?.running ? mode === 'steer' ? 'input.send.steer' : 'input.send.queue' : 'input.send')
   return <div className={css.userContextHost} ref={root}>

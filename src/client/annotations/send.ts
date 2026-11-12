@@ -21,6 +21,10 @@ export async function submitAnnotations(options: {
   mode?: 'queue' | 'steer'
 }): Promise<boolean> {
   const { ctx, store, sessionId, input, annotations } = options
+  if (annotations.some(annotation => annotation.sessionId !== sessionId)) {
+    store.setSubmission(sessionId, { pending: false, error: '引用目标会话不一致，已阻止发送；请回到原会话检查清单' })
+    return false
+  }
   cancelInputRollback(input)
   const parts = [...(options.leadingBlocks ?? [])]
   if (annotations.length > 0) parts.push(buildProtocolBlock(annotations))

@@ -170,6 +170,9 @@
 /* 注解编辑器里的投递目标提示行（「发送至：侧边 2」）。 */
 .editorTarget {
   padding: 2px 2px 0;
+  overflow-wrap: anywhere;
+  max-height: 48px;
+  overflow: auto;
   font-size: 11px;
   line-height: 16px;
   color: var(--dsw-alias-label-caption, #8f959e);

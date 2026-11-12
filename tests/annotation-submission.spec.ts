@@ -41,6 +41,12 @@ function harness(modern = false) {
 }
 
 describe('controlled quote admission', () => {
+  it('rejects foreign-session annotations before touching any draft or submitting', async () => {
+    const h = harness(); const other = h.store.add({ sessionId: 'other', text: 'private other', anchorText: 'private other', anchorKey: undefined, occurrence: 0, note: '' })
+    expect(await submitAnnotations({ ctx: h.ctx, store: h.store, sessionId: 'child', input: h.input, annotations: [h.quote, other] })).toBe(false)
+    expect(h.submitted).not.toHaveBeenCalled(); expect(h.input.state.getSnapshot().draft).toBe('正文'); expect(h.store.get(other.id)?.state).toBe('active')
+    expect(h.store.getSubmission('child').error).toContain('会话不一致')
+  })
   it('waiting for the target cannot silently submit newly typed body text', async () => {
     const h = harness()
     let ready!: (binding: unknown) => void

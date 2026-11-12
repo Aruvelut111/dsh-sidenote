@@ -11,6 +11,7 @@ import { t } from '../locales.ts'
 import { useLocaleTick } from '../locale-tick.ts'
 import { AnnotationBoundary } from './boundary.tsx'
 import css from './annotations.module.css'
+import { revealExternalAnnotation } from './external.ts'
 
 type Kind = 'annotations' | 'reflows'
 interface ChipProps { readonly session: InputZone['session']; readonly input: InputZone['input'] }
@@ -19,22 +20,24 @@ function AnnotationDetail({ item, store, pending, onEdit }: { item: Annotation; 
   const [editing, setEditing] = useState(false)
   const [note, setNote] = useState(item.note)
   const cancelled = useRef(false)
+  const originalNote = useRef(item.note)
   const save = () => { if (!cancelled.current) store.setNote(item.id, note); setEditing(false) }
   return <li className={css.contextItem}>
     <span className={css.contextNumber}>{item.number}.</span>
     <div className={css.contextContent}>
+      {item.externalSource?.address && <button type="button" className={css.contextSourceLink} title={item.externalSource.address} onClick={() => { revealExternalAnnotation(item) }}>{item.externalSource.label.replace(/^[A-Za-z]:[\\/].*[\\/]/, '')} ↗</button>}
       <div className={css.contextLabel}>{t('selectedText')}</div>
-      <div className={css.contextText}>{item.text}</div>
+      <div className={css.contextText}>{item.externalSource ? item.anchorText : item.text}</div>
       <div className={css.contextLabel}>{t('userComment')}</div>
-      {editing ? <textarea autoFocus rows={3} className={css.contextEditor} aria-label={t('userComment')} value={note} onChange={event => { setNote(event.target.value) }} onBlur={save} onKeyDown={event => {
-        if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); cancelled.current = true; setEditing(false) }
+      {editing ? <textarea autoFocus rows={3} className={css.contextEditor} aria-label={t('userComment')} value={note} onChange={event => { setNote(event.target.value); if (item.externalSource) store.setNote(item.id, event.target.value) }} onBlur={save} onKeyDown={event => {
+        if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); cancelled.current = true; if (item.externalSource) store.setNote(item.id, originalNote.current); setEditing(false) }
         if (event.key === 'Enter' && (event.metaKey || event.ctrlKey)) { event.preventDefault(); save() }
       }} /> : <div className={css.contextText}>{item.note || <span className={css.contextLabel}>{t('noNote')}</span>}</div>}
     </div>
     <div className={css.contextActions}>
       <button type="button" className={css.contextAction} disabled={pending} aria-label={t(editing ? 'saveNoteAria' : 'editNoteAria')} title={t(editing ? 'saveNoteAria' : 'editNoteAria')} onMouseDown={event => { if (editing) event.preventDefault() }} onClick={() => {
         if (editing) save()
-        else { cancelled.current = false; setNote(item.note); setEditing(true); onEdit() }
+        else { cancelled.current = false; originalNote.current = item.note; setNote(item.note); setEditing(true); onEdit() }
       }}>{editing ? <IconCheckOutline16 size={16} /> : <IconEditOutline16 size={16} />}</button>
       <button type="button" className={css.contextAction} disabled={pending} aria-label={t('removeAria', { n: item.number })} title={t('removeTitle')} onClick={() => { store.remove(item.id) }}><IconTrashOutline16 size={16} /></button>
     </div>
