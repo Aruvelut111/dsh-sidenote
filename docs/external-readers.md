@@ -1,5 +1,7 @@
 # 外部阅读批注接口（本地 v1）
 
+阅读器内部的文字层、分页和绘制更新不触发聊天批注层重算。关闭侧栏、切换会话和来源替换仍更新可见状态。
+
 插件在 document 上派发同步 CustomEvent `dsh-sidenote:external-annotation:v1`，detail 为 `{action,capture?,sessionId?,id?,point?,reply}`；reply 接收 `{accepted,id?,items?}`。这是同页面插件能力，不跨窗口、不开放网络。
 
 - `probe`：询问接口是否就绪。

@@ -1,6 +1,6 @@
-> **阅读集成分支**：本仓库保留 g-yixuan/dsh-sidenote 的 Git 历史与 MIT 许可，增加 Paper Margin 外部批注接口、来源回跳和侧栏生命周期处理。配套安装包与使用说明见 [Paper Margin](https://github.com/Aruvelut111/dsh-paper-margin)。本分支版本为 0.8.5-reader.3。
+> **阅读集成分支**：本仓库保留 g-yixuan/dsh-sidenote 的 Git 历史与 MIT 许可，增加 Paper Margin 外部批注接口、来源回跳和侧栏生命周期处理。配套安装包与使用说明见 [Paper Margin](https://github.com/Aruvelut111/dsh-paper-margin)。本分支版本为 0.8.5-reader.4。
 >
-> 使用阅读集成版时，请安装 [Paper Margin Release](https://github.com/Aruvelut111/dsh-paper-margin/releases/tag/v2.5.5) 中的两个 tgz 包。下方 npm 安装命令和徽章对应上游正式版。
+> 使用阅读集成版时，请安装 [Paper Margin Release](https://github.com/Aruvelut111/dsh-paper-margin/releases/tag/v2.5.6) 中的两个 tgz 包。下方 npm 安装命令和徽章对应上游正式版。
 
 <p align="center">
   <picture>

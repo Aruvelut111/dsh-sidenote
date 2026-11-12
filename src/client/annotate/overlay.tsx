@@ -153,7 +153,7 @@ function AnnotateOverlayInner({ ctx, store, controller, preferences }: OverlayPr
     const observer = new MutationObserver(records => {
       // Ignore this overlay's own positioning styles; host pane resizing and
       // visibility still invalidate geometry without a feedback loop.
-      if (records.every(record => (record.target instanceof Element ? record.target : record.target.parentElement)?.closest('[data-dsh-sidenote]'))) return
+      if (records.every(record => (record.target instanceof Element ? record.target : record.target.parentElement)?.closest('[data-dsh-sidenote],[data-textpreview-url],[data-paper-margin]'))) return
       bumpDebounced()
     })
     try {
@@ -269,7 +269,11 @@ function AnnotateOverlayInner({ ctx, store, controller, preferences }: OverlayPr
       })
       if (!visible || store.get(annotation.id)?.state !== 'active') setEditor(null)
     }
-    const observer = new MutationObserver(check); observer.observe(document.body, { subtree: true, childList: true, attributes: true, attributeFilter: ['hidden', 'aria-hidden', 'class', 'style', 'data-sidebar-right-open', 'data-sidebar-right-session'] }); check()
+    // Reader content does not change whether its ancestor pane is open.
+    const observer = new MutationObserver(records => {
+      if (records.every(record => (record.target instanceof Element ? record.target : record.target.parentElement)?.closest('[data-dsh-sidenote],[data-paper-margin]'))) return
+      check()
+    }); observer.observe(document.body, { subtree: true, childList: true, attributes: true, attributeFilter: ['hidden', 'aria-hidden', 'class', 'style', 'data-sidebar-right-open', 'data-sidebar-right-session'] }); check()
     return () => observer.disconnect()
   }, [editingAnnotation?.id, editingAnnotation?.state, store])
 

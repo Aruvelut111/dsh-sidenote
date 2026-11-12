@@ -171,7 +171,10 @@ export function LegacyPendingContexts({ queue }: { queue?: { root: HTMLElement; 
       }
       if (changed) setProjections([...active.values()])
     }
-    const observer = new MutationObserver(() => { if (!frame) frame = requestAnimationFrame(sync) })
+    const observer = new MutationObserver(records => {
+      if (!queue && records.every(record => (record.target instanceof Element ? record.target : record.target.parentElement)?.closest('[data-textpreview-url],[data-paper-margin]'))) return
+      if (!frame) frame = requestAnimationFrame(sync)
+    })
     observer.observe(queue?.root ?? document.body, { childList: true, subtree: true, characterData: true })
     sync()
     return () => { observer.disconnect(); cancelAnimationFrame(frame); for (const projection of active.values()) restore(projection) }

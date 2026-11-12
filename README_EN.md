@@ -1,6 +1,6 @@
-> **Reader integration fork**: preserves the history and MIT license of g-yixuan/dsh-sidenote, with the Paper Margin annotation bridge, source navigation, and sidebar lifecycle handling. Paired downloads and instructions: [Paper Margin](https://github.com/Aruvelut111/dsh-paper-margin). Fork version: 0.8.5-reader.3.
+> **Reader integration fork**: preserves the history and MIT license of g-yixuan/dsh-sidenote, with the Paper Margin annotation bridge, source navigation, and sidebar lifecycle handling. Paired downloads and instructions: [Paper Margin](https://github.com/Aruvelut111/dsh-paper-margin). Fork version: 0.8.5-reader.4.
 >
-> To use the reader integration, install both tarballs from the [Paper Margin release](https://github.com/Aruvelut111/dsh-paper-margin/releases/tag/v2.5.5). The npm command and badges below refer to the upstream release.
+> To use the reader integration, install both tarballs from the [Paper Margin release](https://github.com/Aruvelut111/dsh-paper-margin/releases/tag/v2.5.6). The npm command and badges below refer to the upstream release.
 
 <p align="center">
   <picture>

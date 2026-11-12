@@ -1,5 +1,7 @@
 # External reader annotation seam (local v1)
 
+Text-layer, page, and drawing updates inside readers do not recalculate chat annotation overlays. Sidebar closure, session changes, and source replacement still update visibility.
+
 Readers dispatch a synchronous CustomEvent named `dsh-sidenote:external-annotation:v1` on document. Its detail is `{action,capture?,sessionId?,id?,point?,reply}`; reply receives `{accepted,id?,items?}`. This is a same-document plugin capability, not a network API.
 
 - `probe`: check availability.
