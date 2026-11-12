@@ -26,8 +26,8 @@ export function elementOf(node: Node): Element | null {
 export function mainMessageOf(node: Node, currentSessionId: string) {
   const body = elementOf(node)?.closest<HTMLElement>(MAIN_ASSISTANT)
   if (body === undefined || body === null) return null
-  const conversation = body.closest<HTMLElement>('[data-conversation-session]')
-  const sessionId = conversation?.dataset.conversationSession ?? currentSessionId
+  const conversation = body.closest<HTMLElement>('[data-conversation-session], [data-sidenote-chat-session]')
+  const sessionId = conversation?.dataset.sidenoteChatSession ?? conversation?.dataset.conversationSession ?? currentSessionId
   if (sessionId === '') return null
   const anchor = body.closest<HTMLElement>('[data-chat-anchor-key]') ?? body
   return {

@@ -29,6 +29,12 @@ function select(start: Node, startOffset = 0, end = start, endOffset = end.textC
 }
 
 describe('scoped assistant selection', () => {
+  it('routes a native side reply to its child even inside the parent conversation layout', () => {
+    document.body.innerHTML = '<main data-conversation-session="parent"><aside data-sidebar-right-session="parent"><section data-sidenote-chat-session="child"><div data-chat-anchor-key="reply" data-chat-flow-kind="assistant-step">side answer</div></section></aside></main>'
+    select(document.querySelector('[data-chat-flow-kind]')!.firstChild!)
+    expect(captureSelection('parent')).toMatchObject({ sessionId: 'child', source: {surface:'side'} })
+  })
+
   it('a side reply uses its real child and only explicit bodies bypass the legacy viewer exclusion', () => {
     const a = side('child-a')
     select(a.body.firstChild!)

@@ -2,6 +2,8 @@
 
 阅读器内部的文字层、分页和绘制更新不触发聊天批注层重算。关闭侧栏、切换会话和来源替换仍更新可见状态。
 
+侧边聊天内的选区使用最近的子会话容器确定归属；外层侧栏的父会话标记不覆盖它。该侧聊的注释由自己的输入框发送，主输入框保持独立。
+
 插件在 document 上派发同步 CustomEvent `dsh-sidenote:external-annotation:v1`，detail 为 `{action,capture?,sessionId?,id?,point?,reply}`；reply 接收 `{accepted,id?,items?}`。这是同页面插件能力，不跨窗口、不开放网络。
 
 - `probe`：询问接口是否就绪。
